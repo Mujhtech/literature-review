@@ -1,103 +1,189 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import { useDropzone } from "react-dropzone";
+import { Upload, FileText, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/use-toast";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+interface AnalysisResult {
+  fileName: string;
+  aim: string;
+  methodology: string;
+  results: string;
+  scope: string;
+  relevance: string;
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [topic, setTopic] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [results, setResults] = useState<AnalysisResult[]>([]);
+  const { toast } = useToast();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const { getRootProps, getInputProps, acceptedFiles } = useDropzone({
+    accept: {
+      "application/pdf": [".pdf"],
+    },
+    multiple: true,
+  });
+
+  const handleAnalysis = async () => {
+    if (!topic) {
+      toast({
+        title: "Error",
+        description: "Please enter your research topic",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (acceptedFiles.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please upload at least one PDF file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsAnalyzing(true);
+    const newResults: AnalysisResult[] = [];
+
+    try {
+      for (const file of acceptedFiles) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("topic", topic);
+
+        const response = await fetch("/api/analyze", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error("Analysis failed");
+        }
+
+        const data = await response.json();
+        newResults.push({
+          fileName: file.name,
+          ...data,
+        });
+      }
+
+      setResults(newResults);
+      toast({
+        title: "Success",
+        description: "Analysis completed successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "An error occurred during analysis",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  return (
+    <main className="container mx-auto p-4 space-y-6">
+      <h1 className="text-3xl font-bold text-center mb-8">
+        Literature Review Assistant
+      </h1>
+
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div className="space-y-2">
+          <Label htmlFor="topic">Research Topic</Label>
+          <Input
+            id="topic"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            placeholder="Enter your research topic..."
+            className="w-full"
+          />
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+
+        <div
+          {...getRootProps()}
+          className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-gray-50 transition-colors"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+          <input {...getInputProps()} />
+          <Upload className="mx-auto h-12 w-12 text-gray-400" />
+          <p className="mt-2">
+            Drag & drop PDF files here, or click to select files
+          </p>
+        </div>
+
+        {acceptedFiles.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="font-semibold">Uploaded Files:</h3>
+            <ul className="space-y-1">
+              {acceptedFiles.map((file: File) => (
+                <li key={file.name} className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  <span>{file.name}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <Button
+          onClick={handleAnalysis}
+          disabled={isAnalyzing || !topic || acceptedFiles.length === 0}
+          className="w-full"
         >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+          {isAnalyzing ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Analyzing...
+            </>
+          ) : (
+            "Analyze Papers"
+          )}
+        </Button>
+
+        {results.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold">Analysis Results</h2>
+            {results.map((result, index) => (
+              <Card key={index}>
+                <CardHeader>
+                  <CardTitle>{result.fileName}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold">Aim/Purpose:</h4>
+                    <p>{result.aim}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Methodology:</h4>
+                    <p>{result.methodology}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Results:</h4>
+                    <p>{result.results}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Scope:</h4>
+                    <p>{result.scope}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Relevance to Topic:</h4>
+                    <p>{result.relevance}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    </main>
   );
 }
